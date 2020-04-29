@@ -2,13 +2,13 @@
 
 Deploy an Ubuntu instance in https://packet.net as Bare Metal server and configure nfdump (https://github.com/phaag/nfdump) and nfsen (http://nfsen.sourceforge.net/). There is optional palybook to configure PortTracker plugin.
 
-# Requirements
+## Requirements
 
 1. https://packet.net account 
 2. Ansible
 3. Terraform v0.12 or newer
 
-# Howto
+## Howto
 
 Ensure you have ssh keys for authentication, as the deployment scripts make use of ssh key authentication.
 
@@ -45,16 +45,19 @@ It will deploy Ubuntu 16.04 in packet.net and install nfdump & nfsen with t1.sma
 terraform output ipv4
 ```
 
-Access nfsen portal via https://<ip-from-terraform>/nfsen/nfsen.php
+Access nfsen portal via https://ip-from-terraform/nfsen/nfsen.php
 
 In order to remove the deployed infrastructure run the following command:
 ```
 make destroy
 ```
 
-Optional: Run the following playbook to enable PortTracker plugins:
+
+## Optional
+
+Run the following playbook to enable PortTracker plugins:
 
 ```
 ansible-playbook nfsen-porttracker.yml -i hosts
-``
+```
 
