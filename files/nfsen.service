@@ -1,0 +1,13 @@
+[Unit]
+Description=NfSen Service
+After=network.target
+
+[Service]
+Type=forking
+PIDFile=/var/nfsen/var/run/nfsend.pid
+ExecStart=/var/nfsen/bin/nfsen start
+ExecStop=/var/nfsen/bin/nfsen stop
+Restart=on-abort
+
+[Install]
+WantedBy=multi-user.target

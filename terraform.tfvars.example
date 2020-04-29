@@ -1,0 +1,31 @@
+# variable defined for packet.net
+
+# packet.net API key
+auth_token = "API KEY"
+
+# packet.net organization ID
+org_id = "ORGANIZATION ID"
+
+# You can find ID of your project form the URL in the Packet web app.
+# # For example, if you see your devices listed at
+# # https://app.packet.net/projects/352000fb2-ee46-4673-93a8-de2c2bdba33b
+# # .. then 352000fb2-ee46-4673-93a8-de2c2bdba33b is your project ID.
+# packet.net project uuid
+project_id = "PROJECT UUID"
+
+# ssh key to be deployed on packet.net server
+ssh_public_key ="~/.ssh/id_rsa.pub"
+
+#hostname of netflow instance
+hostname = "rougue01"
+
+#Location order to deploy server, will deploy on first location with available hardware in the order specified in the below declaration, locations can be found on https://support.packet.com/kb/articles/data-centers#dp-widget-loader
+locations = ["sin1", "sin3", "nrt1","sjc1","ams1"]
+
+# Hardware plan to use, location specific
+#plan = "c1.small.x86"
+#plan = "x1.small.x86"
+plan = "t1.small.x86"
+
+# https://www.packet.com/developers/api/operatingsystems/
+operating_system="ubuntu_16_04"

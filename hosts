@@ -1,0 +1,12 @@
+[netflow_server:vars]
+ansible_connection=ssh
+ansible_user=root
+
+[router:vars]
+ansible_user=fakrul
+
+[router]
+192.168.99.1
+
+[netflow_server]
+147.75.94.119

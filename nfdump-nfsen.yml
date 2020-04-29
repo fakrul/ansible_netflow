@@ -1,0 +1,167 @@
+- hosts: netflow_server
+  become: true
+
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+    locale: en_US.UTF-8
+    ansible_ssh_pipelining: yes
+    source: "{{ lookup('url', 'http://whatismyip.akamai.com/') }}"
+    nfsen_sources:
+      - "'router' => {'port'=>'9999','col'=>'#0000ff','type'=>'netflow'},"
+    nfsen_bufflen: 20000
+
+  tasks:
+    - name: ensure package cache is up to date
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+        force_apt_get: yes
+      tags: install-nfdump, build-nfsen
+
+    - name: set locale
+      command: /usr/sbin/update-locale LANG={{ locale }} LC_ALL=
+
+    - name: install tzdata
+      apt:
+        state: latest
+        update_cache: yes
+        force_apt_get: yes
+        name: tzdata
+
+    - name: set timezone to Australia/Sydney
+      timezone:
+        name: Australia/Sydney
+
+    - name: install nfdump and dependency packages
+      package:
+        name: "{{ item }}"
+        state: present
+      with_items:
+        - git
+        - make
+        - gcc
+        - flex
+        - patch
+        - librrd-dev
+        - libtool-bin
+        - libtool
+        - rrdtool
+        - librrds-perl
+        - librrdp-perl
+        - libmailtools-perl
+        - libsocket6-perl
+        - php
+        - apache2
+        - libapache2-mod-php 
+        - php-mcrypt
+        - dh-autoreconf
+        - pkg-config
+        - libpcap-dev
+        - libboost-all-dev
+        - libbz2-dev
+        - byacc
+        - doxygen
+        - graphviz
+        - bison
+      tags: install-nfdump
+
+    - name: clone nfdump repository from github
+      git: >
+        repo=https://github.com/phaag/nfdump.git
+        dest=/usr/local/src/nfdump
+      tags: install-nfdump, git-clone
+
+    - name: compile and install nfdump ~ this will take a while
+      command: sudo {{ item }} chdir="/usr/local/src/nfdump"
+      with_items:
+        - ./autogen.sh
+        - ./configure --enable-nsel --enable-nfprofile --enable-sflow --enable-readpcap --enable-nfpcapd --enable-nftrack
+        - make
+        - make install
+      become: yes
+      tags: install-nfdump
+
+    - name: fix shared libraries links
+      command: sudo /sbin/ldconfig -v
+      tags: install-nfdump
+
+    - name: check nfdump version
+      command: /usr/local/bin/nfdump -V
+      register: nfdump_version
+    - debug: var=nfdump_version.stdout_lines
+      tags: install-nfdump, nfdump-version
+
+    - name: check for nfsen install directory
+      stat:
+        path: /var/nfsen
+      register: nfsen_check
+      tags: build-nfsen
+
+    - name: nfsen
+      block:
+        - name: download nfsen source
+          get_url:
+            url: 'https://sourceforge.net/projects/nfsen/files/stable/nfsen-1.3.8/nfsen-1.3.8.tar.gz'
+            dest: /usr/local/src
+          retries: 5
+          delay: 10
+
+        - name: cleanup nfsen source directory
+          file:
+            path: /usr/local/src/nfsen-1.3.8
+            state: absent
+
+        - name: extract nfsen source
+          unarchive:
+            src: /usr/local/src/nfsen-1.3.8.tar.gz
+            dest: /usr/local/src
+            remote_src: yes
+
+        - name: copy nfsen.patch
+          copy:
+            src: files/nfsen.patch
+            dest: /usr/local/src/nfsen-1.3.8
+
+        - name: apply patches to nfsen source
+          shell: patch -p0 < {{item}}
+          args:
+            chdir: '/usr/local/src/nfsen-1.3.8'
+          with_items:
+            - nfsen.patch
+          ignore_errors: true
+
+        - name: create nfsen.conf
+          template:
+            src: templates/nfsen.conf
+            dest: /usr/local/src/nfsen-1.3.8/etc/nfsen.conf
+
+        - name: create nfsen user
+          user:
+            name: netflow
+            home: /var/nfsen
+            groups: www-data
+            append: yes
+            shell: /bin/false
+
+        - name: run nfsen installer
+          shell: perl install.pl ./etc/nfsen.conf </dev/null
+          args:
+            chdir: '/usr/local/src/nfsen-1.3.8'
+
+        - name: install nfsen.service systemd
+          copy:
+            src: files/nfsen.service
+            dest: /etc/systemd/system/
+
+        - name: enable nfsen
+          service:
+            name: nfsen
+            enabled: yes
+
+        - name: start nfsen
+          service:
+            name: nfsen
+            state: started
+
+      when: nfsen_check.stat.isdir is not defined or nfsen_check.stat.isdir == false
+      tags: build-nfsen

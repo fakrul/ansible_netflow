@@ -1,0 +1,77 @@
+- hosts: netflow_server
+  become: true
+
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+    locale: en_US.UTF-8
+    ansible_ssh_pipelining: yes
+    source: "{{ lookup('url', 'http://whatismyip.akamai.com/') }}"
+    nfsen_sources:
+      - "'router' => {'port'=>'9999','col'=>'#0000ff','type'=>'netflow'},"
+    nfsen_bufflen: 20000
+
+  tasks:
+    - name: check nftrack data directory
+      stat:
+        path: /var/ports-db
+      ignore_errors: true
+      register: nftrack_folder
+      tags: porttracker_plugins
+
+    - name: creates directory for nftrack data
+      file:
+        path: /var/ports-db
+        state: directory
+        recurse: yes
+        owner: netflow
+        group: www-data
+      when: nftrack_folder.stat.exists == false
+      tags: porttracker_plugins
+    
+    - name: change nftrack path PortTracker
+      shell: sed -i 's|/data/ports-db|/var/ports-db|g' PortTracker.pm
+      args:
+        chdir: '/usr/local/src/nfsen-1.3.8/contrib/PortTracker/'
+      tags: porttracker_plugins
+
+    - name: copy necessary files
+      shell: |
+        cp /usr/local/src/nfsen-1.3.8/contrib/PortTracker/PortTracker.pm /var/nfsen/plugins/
+        cp /usr/local/src/nfsen-1.3.8/contrib/PortTracker/PortTracker.php /var/nfsen/plugins/
+        cp /usr/local/src/nfsen-1.3.8/contrib/PortTracker/PortTracker.php /var/www/html/nfsen/plugins
+      become: yes
+      tags: porttracker_plugins, copy-files
+
+    - name: activate PortTracker plugins
+      lineinfile:
+        dest: /var/nfsen/etc/nfsen.conf
+        insertafter: '@plugins'
+        line: "\t['live', 'PortTracker'],"
+
+    - name: initialize the PortTracker database files - this might take a while
+      command: sudo -u netflow nftrack -I -d /var/ports-db
+      tags: porttracker_plugins
+
+    - name: fix file ownership and group
+      file:
+        path: /var/ports-db
+        owner: netflow
+        group: www-data
+        recurse: yes
+      tags: porttracker_plugins
+
+    - name: fix files permission
+      file:
+        path: /var/ports-db/
+        mode: '664'
+      tags: porttracker_plugins
+
+    - name: fix folder permission
+      file:
+        path: /var/ports-db
+        mode: '775'
+      tags: porttracker_plugins
+
+    - name: restart nfsen
+      shell: systemctl restart nfsen.service
+      tags: porttracker_plugins
