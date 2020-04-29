@@ -5,10 +5,6 @@
     ansible_python_interpreter: /usr/bin/python3
     locale: en_US.UTF-8
     ansible_ssh_pipelining: yes
-    source: "{{ lookup('url', 'http://whatismyip.akamai.com/') }}"
-    nfsen_sources:
-      - "'router' => {'port'=>'9999','col'=>'#0000ff','type'=>'netflow'},"
-    nfsen_bufflen: 20000
 
   tasks:
     - name: check nftrack data directory

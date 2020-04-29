@@ -15,7 +15,6 @@ Ensure you have ssh keys for authentication, as the deployment scripts make use 
 ```
 ssh-keygen
 cd ansible_netflow
-
 ```
 
 Copy example terraform.tfvars.example into terraform.tfvars
